@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate
 
 
-agent1_agent_prompt = ChatPromptTemplate.from_messages(
+Execution_node_agent_prompt = ChatPromptTemplate.from_messages(
  [
         (
             "system",

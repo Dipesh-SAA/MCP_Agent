@@ -2,6 +2,7 @@ from app.infrastrature.llm.llm_factory import llm
 from app.infrastrature.prompts.conversation_agent_prompt import (
     conversation_agent_prompt
 )
+from app.services.session.markdown_chat_logger import append_agent_chat
 
 
 class ConversationAgent:
@@ -43,6 +44,13 @@ class ConversationAgent:
 
         response = await llm.ainvoke(
             formatted_messages
+        )
+
+        append_agent_chat(
+            state.get("session_id"),
+            "Conversation Agent",
+            formatted_messages,
+            response.content
         )
 
         return {

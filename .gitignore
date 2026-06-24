@@ -23,9 +23,9 @@ htmlcov/
 
 # FastAPI / local runtime
 *.log
+docs/session_chats/
 
 # OS/editor
 .DS_Store
 .idea/
 .vscode/
-

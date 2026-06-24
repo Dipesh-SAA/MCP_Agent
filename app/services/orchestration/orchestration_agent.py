@@ -4,6 +4,7 @@ from app.infrastrature.llm.llm_factory import llm
 from app.infrastrature.prompts.orchestration_agent_prompt import (
     orchestration_agent_prompt
 )
+from app.services.session.markdown_chat_logger import append_agent_chat
 
 
 class OrchestrationAgent:
@@ -19,12 +20,14 @@ class OrchestrationAgent:
             "hello",
             "hi",
             "hii",
+            "hiii",
             "hey"
         ]
 
         return any(
             text == word
             or text.startswith(f"{word} ")
+            or text.startswith("hii")
             for word in greeting_words
         ) or text in [
             "can you help me",
@@ -43,6 +46,38 @@ class OrchestrationAgent:
             "yes",
             "proceed"
         ]
+
+    @staticmethod
+    def _is_modify(
+        message: str
+    ):
+
+        text = message.lower()
+
+        return any(
+            word in text
+            for word in [
+                "modify",
+                "change",
+                "update",
+                "edit",
+                "revise"
+            ]
+        )
+
+    @staticmethod
+    def _is_reject(
+        message: str
+    ):
+
+        text = message.lower().strip()
+
+        return text in [
+            "reject",
+            "rejected",
+            "no",
+            "not approved"
+        ] or "reject" in text
 
     @staticmethod
     def _is_show(
@@ -122,6 +157,20 @@ class OrchestrationAgent:
                 "intent": "approval"
             }
 
+        if OrchestrationAgent._is_reject(
+            message
+        ):
+            return {
+                "intent": "reject"
+            }
+
+        if OrchestrationAgent._is_modify(
+            message
+        ):
+            return {
+                "intent": "modify"
+            }
+
         if OrchestrationAgent._is_verification(
             message
         ):
@@ -139,7 +188,7 @@ class OrchestrationAgent:
 
         if current_step == "chat" and state.get("plan"):
             return {
-                "intent": "agent_instruction"
+                "intent": "sql_instruction"
             }
 
         return {
@@ -151,6 +200,13 @@ class OrchestrationAgent:
         state: dict,
         message: str
     ):
+
+        if OrchestrationAgent._is_conversation(
+            message
+        ):
+            return {
+                "intent": "conversation"
+            }
 
         formatted_messages = orchestration_agent_prompt.invoke(
             {
@@ -168,6 +224,13 @@ class OrchestrationAgent:
 
         content = response.content.strip()
 
+        append_agent_chat(
+            state.get("session_id"),
+            "Orchestration Agent",
+            formatted_messages,
+            content
+        )
+
         try:
             decision = json.loads(
                 content
@@ -182,9 +245,11 @@ class OrchestrationAgent:
             "conversation",
             "show",
             "approval",
+            "modify",
+            "reject",
             "waiting_for_approval",
             "verification",
-            "agent_instruction",
+            "sql_instruction",
             "workflow"
         ]:
             return OrchestrationAgent._fallback_decide(
