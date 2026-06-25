@@ -73,6 +73,78 @@
   }
   .btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
 
+  /* ---------- token modal ---------- */
+  .token-modal{
+    position:fixed;
+    inset:0;
+    background:rgba(5,8,12,.82);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:20;
+    padding:20px;
+  }
+  .token-modal.show{display:flex;}
+  .token-card{
+    width:min(560px,100%);
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px;
+    box-shadow:0 18px 70px rgba(0,0,0,.42);
+  }
+  .token-card h2{
+    margin:0 0 8px 0;
+    font-size:17px;
+    letter-spacing:0;
+  }
+  .token-card p{
+    margin:0 0 14px 0;
+    color:var(--ink-dim);
+    font-size:13px;
+    line-height:1.5;
+  }
+  #tokenInput{
+    width:100%;
+    min-height:120px;
+    resize:vertical;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--ink);
+    border-radius:8px;
+    padding:11px 12px;
+    font-family:var(--mono);
+    font-size:12px;
+    line-height:1.45;
+  }
+  #tokenInput:focus{outline:none;border-color:var(--accent);}
+  .token-actions{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-top:12px;
+  }
+  .token-status{
+    color:var(--err);
+    font-size:12px;
+    min-height:18px;
+  }
+  .token-save{
+    background:var(--accent);
+    color:#1a0e09;
+    border:none;
+    font-weight:700;
+    font-size:13px;
+    padding:9px 16px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  .token-chip{
+    color:var(--ok);
+    border-color:rgba(79,209,165,.45);
+  }
+
   /* ---------- layout ---------- */
   .layout{
     flex:1;
@@ -379,9 +451,22 @@
 </head>
 <body>
 
+<div class="token-modal" id="tokenModal" aria-modal="true" role="dialog">
+  <div class="token-card">
+    <h2>Enter access token</h2>
+    <p>This token is saved in this browser and sent in the Authorization header for every request. When it expires, this prompt will open again.</p>
+    <textarea id="tokenInput" spellcheck="false" placeholder="Paste Bearer token or raw JWT"></textarea>
+    <div class="token-actions">
+      <span class="token-status" id="tokenStatus"></span>
+      <button class="token-save" id="saveTokenBtn">Save token</button>
+    </div>
+  </div>
+</div>
+
 <div class="topbar">
   <div class="brand"><span class="dot"></span>MCP <b>Pipeline Console</b></div>
   <div class="session-info">
+    <button class="btn-ghost" id="tokenBtn">Token</button>
     <span>session: <span id="sessionIdLabel">none</span></span>
     <button class="btn-ghost" id="newSessionBtn">New session</button>
   </div>
@@ -414,10 +499,30 @@
   "use strict";
 
   // ---------------- config ----------------
-  const API_BASE = "http://127.0.0.1:8000";
-  const CHAT_ENDPOINT = API_BASE + "/MCP_Agents/api/chat";
+  const DEFAULT_API_BASE = "http://127.0.0.1:8000";
+  const API_BASE_STORAGE_KEY = "mcp_api_base";
   const TOKEN_STORAGE_KEY = "mcp_token";        // optional, set via setToken() if needed
   const SESSION_STORAGE_KEY = "mcp_session_id";
+
+  function apiBaseCandidates(){
+    const savedBase = localStorage.getItem(API_BASE_STORAGE_KEY);
+    const bases = [];
+    if (savedBase) bases.push(savedBase);
+    if (location.protocol === "http:" || location.protocol === "https:") {
+      bases.push(location.origin);
+    }
+    bases.push(DEFAULT_API_BASE, "http://localhost:8000");
+    return [...new Set(bases.map(base => String(base || "").replace(/\/+$/,"")).filter(Boolean))];
+  }
+
+  function chatEndpointCandidates(){
+    const paths = ["/MCP_Agents/api/chat", "/api/chat"];
+    const endpoints = [];
+    apiBaseCandidates().forEach(base => {
+      paths.forEach(path => endpoints.push(base + path));
+    });
+    return [...new Set(endpoints)];
+  }
 
   // ---------------- state ----------------
   const state = {
@@ -437,6 +542,11 @@
   const $sendBtn      = document.getElementById("sendBtn");
   const $sessionLabel = document.getElementById("sessionIdLabel");
   const $newSessionBtn= document.getElementById("newSessionBtn");
+  const $tokenBtn      = document.getElementById("tokenBtn");
+  const $tokenModal    = document.getElementById("tokenModal");
+  const $tokenInput    = document.getElementById("tokenInput");
+  const $tokenStatus   = document.getElementById("tokenStatus");
+  const $saveTokenBtn  = document.getElementById("saveTokenBtn");
   const $errorBanner  = document.getElementById("errorBanner");
   const $errorText     = document.getElementById("errorText");
   const $errorClose    = document.getElementById("errorClose");
@@ -481,6 +591,109 @@
     $errorBanner.classList.remove("show");
   }
   $errorClose.addEventListener("click", clearError);
+
+  function normalizeToken(value){
+    return String(value || "").trim().replace(/^Bearer\s+/i, "");
+  }
+
+  function getStoredToken(){
+    return normalizeToken(localStorage.getItem(TOKEN_STORAGE_KEY));
+  }
+
+  function decodeJwtPayload(token){
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    try {
+      const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64 + "=".repeat((4 - base64.length % 4) % 4);
+      return JSON.parse(atob(padded));
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function tokenExpiry(token){
+    const payload = decodeJwtPayload(token);
+    return payload && typeof payload.exp === "number" ? payload.exp : null;
+  }
+
+  function isTokenExpired(token){
+    const exp = tokenExpiry(token);
+    if (!exp) return false;
+    return exp <= Math.floor(Date.now() / 1000) + 30;
+  }
+
+  function tokenSummary(token){
+    const exp = tokenExpiry(token);
+    if (!token) return "missing";
+    if (!exp) return "saved";
+    return isTokenExpired(token) ? "expired" : "valid";
+  }
+
+  function updateTokenButton(){
+    const status = tokenSummary(getStoredToken());
+    $tokenBtn.textContent = status === "valid" ? "Token OK" : "Token";
+    $tokenBtn.classList.toggle("token-chip", status === "valid");
+  }
+
+  function openTokenModal(reason){
+    if (reason) $tokenStatus.textContent = reason;
+    $tokenInput.value = getStoredToken();
+    $tokenModal.classList.add("show");
+    setTimeout(() => $tokenInput.focus(), 0);
+    updateTokenButton();
+  }
+
+  function closeTokenModal(){
+    $tokenModal.classList.remove("show");
+    $tokenStatus.textContent = "";
+    updateTokenButton();
+  }
+
+  function ensureValidToken(){
+    const token = getStoredToken();
+    if (!token) {
+      openTokenModal("Token required before starting.");
+      return null;
+    }
+    if (isTokenExpired(token)) {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      openTokenModal("Token expired. Paste a new token.");
+      return null;
+    }
+    return token;
+  }
+
+  function saveTokenFromModal(){
+    const token = normalizeToken($tokenInput.value);
+    if (!token) {
+      $tokenStatus.textContent = "Paste a token first.";
+      return;
+    }
+    if (isTokenExpired(token)) {
+      $tokenStatus.textContent = "This token is already expired.";
+      return;
+    }
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    closeTokenModal();
+    clearError();
+  }
+
+  $tokenBtn.addEventListener("click", () => openTokenModal(""));
+  $saveTokenBtn.addEventListener("click", saveTokenFromModal);
+  $tokenInput.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      saveTokenFromModal();
+    }
+  });
+
+  setInterval(() => {
+    const token = getStoredToken();
+    if (token && isTokenExpired(token)) {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      openTokenModal("Token expired. Paste a new token.");
+    }
+  }, 30000);
 
   function setLoading(isLoading){
     state.loading = isLoading;
@@ -630,18 +843,20 @@
 
   function renderCompletedPanel(data){
     const apiResp = data.api_response || {};
-    const ok = apiResp.status_code && apiResp.status_code < 400;
+    const ok = typeof data.a2_ok === "boolean"
+      ? data.a2_ok
+      : Boolean(apiResp.status_code && apiResp.status_code < 400);
     const body = `
       <div class="panel-section">
         <h4>Status</h4>
         <div class="content" style="color:${ok ? 'var(--ok)' : 'var(--err)'}">
-          ${ok ? "Project created successfully" : "Execution finished with an error"}
+          ${ok ? "A2 execution completed successfully" : "A2 execution needs attention"}
           ${apiResp.status_code ? ` (HTTP ${escapeHtml(apiResp.status_code)})` : ""}
         </div>
       </div>
       <div class="panel-section">
         <h4>Message</h4>
-        <div class="content">${escapeHtml(data.message || "")}</div>
+        <div class="content">${escapeHtml(data.a2_response || data.message || "")}</div>
       </div>
       <div class="json-toggle" data-toggle="raw-completed">▸ view full response</div>
       <pre class="raw-json" style="display:none" data-block="raw-completed">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
@@ -689,6 +904,9 @@
 
     if (data.session_id) setSessionId(data.session_id);
     if (data.error) {
+      if (/token|authorization|unauthorized|denied/i.test(data.error)) {
+        openTokenModal("Token failed. Paste a fresh token.");
+      }
       showError(data.error === "Session not found"
         ? "Your session has expired or was not found. Starting a new session is recommended."
         : data.error);
@@ -738,6 +956,9 @@
       case "execution_result":
       case "completed":
         renderCompletedPanel(data);
+        if (data.a2_ok === false || /token context: missing|authorization has been denied/i.test(JSON.stringify(data.api_response || {}))) {
+          openTokenModal("A2 rejected the token. Paste a fresh token.");
+        }
         state.awaitingModifyFeedback = false;
         toggleModifyHint(false);
         break;
@@ -788,24 +1009,26 @@
       showError("Message cannot be empty.");
       return;
     }
+    const token = ensureValidToken();
+    if (!token) return;
     clearError();
     addUserMessage(text);
     setLoading(true);
     addTypingIndicator();
 
     const headers = { "Content-Type": "application/json" };
-    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-    if (token) headers["Authorization"] = "Bearer " + token;
+    headers["Authorization"] = "Bearer " + token;
 
     const payload = { message: text };
     if (state.sessionId) payload.session_id = state.sessionId;
 
     try {
-      const res = await fetch(CHAT_ENDPOINT, {
-        method: "POST",
-        headers: headers,
-        body: JSON.stringify(payload)
-      });
+      const fetchResult = await postChatWithFallback(headers, payload);
+      const res = fetchResult.response;
+      if (fetchResult.endpoint) {
+        const base = fetchResult.endpoint.replace(/\/(?:MCP_Agents\/)?api\/chat$/, "");
+        localStorage.setItem(API_BASE_STORAGE_KEY, base);
+      }
 
       removeTypingIndicator();
 
@@ -814,10 +1037,14 @@
         return;
       }
       if (res.status === 404) {
-        showError("The chat endpoint could not be found. Check that the backend is running at " + API_BASE + ".");
+        showError("The chat endpoint could not be found. Checked: " + chatEndpointCandidates().join(", "));
         return;
       }
       if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem(TOKEN_STORAGE_KEY);
+          openTokenModal("Token rejected. Paste a fresh token.");
+        }
         showError("Request failed (HTTP " + res.status + "). Please try again.");
         return;
       }
@@ -834,10 +1061,34 @@
 
     } catch (networkErr) {
       removeTypingIndicator();
-      showError("Network error — could not reach the server at " + API_BASE + ". Check your connection or that the backend is running.");
+      showError("Network error — could not reach A1 backend. Checked: " + chatEndpointCandidates().join(", "));
     } finally {
       setLoading(false);
     }
+  }
+
+  async function postChatWithFallback(headers, payload){
+    const endpoints = chatEndpointCandidates();
+    let lastError = null;
+    let last404 = null;
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: headers,
+          body: JSON.stringify(payload)
+        });
+        if (response.status === 404) {
+          last404 = { response, endpoint };
+          continue;
+        }
+        return { response, endpoint };
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    if (last404) return last404;
+    throw lastError || new Error("Unable to reach A1 backend");
   }
 
   // ---------------- input wiring ----------------
@@ -885,6 +1136,13 @@
   // ---------------- init ----------------
   setSessionId(state.sessionId);
   setStage(null);
+  updateTokenButton();
+  if (!getStoredToken()) {
+    openTokenModal("Token required before starting.");
+  } else if (isTokenExpired(getStoredToken())) {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    openTokenModal("Token expired. Paste a new token.");
+  }
   if (state.sessionId) {
     addAssistantText("Resumed session " + state.sessionId + ". Continue where you left off, or start a new session above.", "system");
   } else {

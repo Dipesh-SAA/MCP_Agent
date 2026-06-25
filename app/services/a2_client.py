@@ -28,7 +28,7 @@ async def call_a2_with_plan(state: dict[str, Any]) -> dict[str, Any]:
     chat_url = os.getenv("A2_CHAT_URL", DEFAULT_A2_CHAT_URL).strip() or DEFAULT_A2_CHAT_URL
     timeout_seconds = float(os.getenv("A2_TIMEOUT_SECONDS", "120"))
     headers = {}
-    token = state.get("token")
+    token = _authorization_header(state.get("token"))
     if token:
         headers["Authorization"] = token
 
@@ -49,16 +49,48 @@ async def call_a2_with_plan(state: dict[str, Any]) -> dict[str, Any]:
         if event.get("type") in {"error", "run_failed"} and (event.get("error") or event.get("content"))
     ]
     final_response = _final_response_from_events(events)
+    response_error = _response_error(final_response)
+    if response_error:
+        errors.append(response_error)
     return {
         "status_code": response.status_code,
         "ok": response.is_success and not errors,
         "a2_chat_url": chat_url,
         "payload": payload,
+        "authorization_forwarded": bool(token),
         "final_response": final_response,
         "events": events,
         "errors": errors,
         "raw_body": response.text if not events else None,
     }
+
+
+def _authorization_header(token: Any) -> str | None:
+    if not isinstance(token, str):
+        return None
+    value = token.strip()
+    if not value:
+        return None
+    if value.lower().startswith("bearer "):
+        return value
+    return f"Bearer {value}"
+
+
+def _response_error(final_response: str | None) -> str | None:
+    if not final_response:
+        return None
+    lowered = final_response.lower()
+    failure_markers = (
+        "workflow paused",
+        " error:",
+        "authorization has been denied",
+        "backend token context: missing",
+        "token_expired",
+        "run failed",
+    )
+    if any(marker in lowered for marker in failure_markers):
+        return final_response
+    return None
 
 
 def _parse_sse_events(body: str) -> list[dict[str, Any]]:
