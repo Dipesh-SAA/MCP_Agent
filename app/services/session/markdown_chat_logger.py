@@ -46,42 +46,44 @@ def append_agent_chat(
     response: Any
 ):
 
-    if not session_id:
-        session_id = "unknown-session"
+    # Markdown session logging is disabled.
+    # if not session_id:
+    #     session_id = "unknown-session"
 
-    LOG_DIR.mkdir(
-        parents=True,
-        exist_ok=True
-    )
+    # LOG_DIR.mkdir(
+    #     parents=True,
+    #     exist_ok=True
+    # )
 
-    file_path = LOG_DIR / f"{session_id}.md"
+    # file_path = LOG_DIR / f"{session_id}.md"
 
-    timestamp = datetime.utcnow().isoformat()
+    # timestamp = datetime.utcnow().isoformat()
 
-    content = f"""
-## {agent_name}
+    # content = f"""
+    # ## {agent_name}
 
-Time: `{timestamp} UTC`
+    # Time: `{timestamp} UTC`
 
-### Prompt
+    # ### Prompt
 
-```text
-{_stringify_messages(prompt)}
-```
+    # ```text
+    # {_stringify_messages(prompt)}
+    # ```
 
-### Response
+    # ### Response
 
-```text
-{_stringify_message(response)}
-```
+    # ```text
+    # {_stringify_message(response)}
+    # ```
 
----
-"""
+    # ---
+    # """
 
-    with file_path.open(
-        "a",
-        encoding="utf-8"
-    ) as file:
-        file.write(
-            content
-        )
+    # with file_path.open(
+    #     "a",
+    #     encoding="utf-8"
+    # ) as file:
+    #     file.write(
+    #         content
+    #     )
+    return None

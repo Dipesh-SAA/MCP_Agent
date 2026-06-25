@@ -74,7 +74,7 @@
   "specification": {
    
     "required_output_structure": {
-      "workflow_type": "",
+      "workflow_type": "full_vibe_setup",
       "project_name": "",
       "project_description": "",
       "repo_name": "",

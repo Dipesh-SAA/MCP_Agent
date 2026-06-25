@@ -237,3 +237,5 @@ memory = MemorySaver()
 graph = builder.compile(
     checkpointer=memory
 )
+
+# graph.compile()

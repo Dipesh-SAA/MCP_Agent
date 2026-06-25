@@ -145,7 +145,7 @@ Your responsibility is to analyze a business requirement and generate a workflow
 Required Output Structure:
 
 {
-    "workflow_type": "",
+    "workflow_type": "full_vibe_setup",
     "project_name": "",
     "project_description": "",
     "repo_name": "",
