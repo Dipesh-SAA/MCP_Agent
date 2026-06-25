@@ -154,9 +154,10 @@ Required Output Structure:
     "bucket_description": "",
     "activity_name": "",
     "activity_description": "",
-    "sql_code_name": "",
-    "python_code_name": "",
-    "powershell_code_name": "",
+    "code_name": "",
+    "code_type": "",
+    "runtime": "",
+    "code_description": "",
     "execution_mode": ""
 }
 
@@ -164,7 +165,8 @@ Generation Rules:
 
 - Generate meaningful business names.
 - Generate all descriptions.
-- Generate SQL, Python and PowerShell asset names.
+- Generate one code asset name and a business description of what the code should do.
+- Do not generate executable code or script text.
 - Use kebab-case for repo, bucket, activity and code names.
 - workflow_type should describe the workflow category.
 - execution_mode should always be:
@@ -186,9 +188,10 @@ Output:
     "bucket_description": "Customer transformation pipeline.",
     "activity_name": "customer-load-activity",
     "activity_description": "Load and transform customer records.",
-    "sql_code_name": "customer-gold-load-sql",
-    "python_code_name": "customer-validation-python",
-    "powershell_code_name": "customer-deployment-ps",
+    "code_name": "customer-gold-load-sql",
+    "code_type": "SQL",
+    "runtime": "Fabric Warehouse SQL",
+    "code_description": "Describes the transformation needed to load validated customer records from Silver to Gold.",
     "execution_mode": "FULL_WORKFLOW"
 }
 
