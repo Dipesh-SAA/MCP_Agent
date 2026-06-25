@@ -106,7 +106,7 @@ def build_planner_prompt(
     constitution = VIBE_CONFIG["constitution"]
     specification = VIBE_CONFIG["specification"]
 
-    user_prompt = VIBE_CONFIG["system_prompt"]["prompt"]
+    user_prompt = VIBE_CONFIG["user_prompt"]["prompt"]
 
     final_user_prompt = (
         user_prompt
@@ -167,12 +167,8 @@ Generation Rules:
 - Generate SQL, Python and PowerShell asset names.
 - Use kebab-case for repo, bucket, activity and code names.
 - workflow_type should describe the workflow category.
-- execution_mode should be one of:
-  - FULL_WORKFLOW
-  - SQL_ONLY
-  - PYTHON_ONLY
-  - POWERSHELL_ONLY
-  - HYBRID
+- execution_mode should always be:
+  - full_vibe_setup 
 
 Examples:
 
@@ -181,7 +177,7 @@ Requirement:
 
 Output:
 {
-    "workflow_type": "gold-load-workflow",
+    "workflow_type": "full_vibe_setup",
     "project_name": "Customer Gold Load",
     "project_description": "Load customer data from Silver to Gold layer.",
     "repo_name": "customer-data-repo",
