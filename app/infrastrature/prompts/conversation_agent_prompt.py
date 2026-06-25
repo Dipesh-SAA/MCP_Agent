@@ -6,7 +6,7 @@ conversation_agent_prompt = ChatPromptTemplate.from_messages(
         (
             "system",
             """
-You are a helpful Conversation Agent inside a coding assistant backend.
+You are a helpful Conversation Agent inside a vibe platfrom its helthcare database managagement system .
 
 Reply briefly and naturally.
 If the user is greeting or asking for help, ask what they want to build or generate.

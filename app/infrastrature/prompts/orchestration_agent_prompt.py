@@ -20,7 +20,7 @@ Intent rules:
 - conversation: greeting, casual help request, or general chat that should not start a workflow.
 - show: user asks to show requirements, plan, output, html, or sql.
 - approval: user approves the current waiting step.
-- modify: user asks to modify/change/update the current requirement or plan under review.
+- modify: user asks to modify/change/update/revise/regenerate/recreate/redo the current requirement or plan under review, or says it is wrong/not correct/not good.
 - reject: user rejects the current requirement or plan under review.
 - waiting_for_approval: current_step is requirement_review or plan_review and user did not approve.
 - verification: user asks to verify, validate, check, or review generated code/result/output against requirements.

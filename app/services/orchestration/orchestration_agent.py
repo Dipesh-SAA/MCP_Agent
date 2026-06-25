@@ -61,7 +61,17 @@ class OrchestrationAgent:
                 "change",
                 "update",
                 "edit",
-                "revise"
+                "revise",
+                "regenerate",
+                "regenrate",
+                "regenarte",
+                "recreate",
+                "redo",
+                "again",
+                "wrong",
+                "incorrect",
+                "not correct",
+                "not good"
             ]
         )
 
@@ -230,6 +240,10 @@ class OrchestrationAgent:
             formatted_messages,
             content
         )
+
+        if content.startswith("```"):
+            content = content.strip("`")
+            content = content.removeprefix("json").strip()
 
         try:
             decision = json.loads(

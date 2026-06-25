@@ -132,6 +132,7 @@ class Orchestrator:
             return {"error": "Session not found"}
 
         current_step = state.get("modify_target_step") or state.get("current_step")
+        before_step = state.get("current_step")
 
         if current_step not in ["requirement_review", "plan_review"]:
             return {
@@ -161,14 +162,24 @@ class Orchestrator:
                 "session_id": session_id,
                 "type": "requirement_review",
                 "requirements": state.get("requirements"),
-                "actions": ["approve", "modify"]
+                "actions": ["approve", "modify"],
+                "debug": {
+                    "intent": "modify_feedback",
+                    "before_step": before_step,
+                    "after_step": current_step
+                }
             }
 
         return {
             "session_id": session_id,
             "type": "plan_review",
             "plan": state.get("plan"),
-            "actions": ["approve", "modify"]
+            "actions": ["approve", "modify"],
+            "debug": {
+                "intent": "modify_feedback",
+                "before_step": before_step,
+                "after_step": current_step
+            }
         }
 
     @staticmethod
@@ -196,14 +207,24 @@ class Orchestrator:
                 "session_id": session_id,
                 "type": "requirement_modify",
                 "message": "Tell me what changes you want in the requirements.",
-                "requirements": state.get("requirements")
+                "requirements": state.get("requirements"),
+                "debug": {
+                    "intent": "modify",
+                    "before_step": current_step,
+                    "after_step": state["current_step"]
+                }
             }
 
         return {
             "session_id": session_id,
             "type": "plan_modify",
             "message": "Tell me what changes you want in the plan.",
-            "plan": state.get("plan")
+            "plan": state.get("plan"),
+            "debug": {
+                "intent": "modify",
+                "before_step": current_step,
+                "after_step": state["current_step"]
+            }
         }
     @staticmethod
     async def start_workflow(
@@ -260,7 +281,7 @@ class Orchestrator:
     def _is_modify(message: str):
         text = message.lower().strip()
         return text == "modify" or text.startswith("modify")
-############################################################## main chat function with Orchestrator ##############################################################
+############################################################## main chat function with Orchestrator agent ##############################################################
     @staticmethod
     async def handle_chat(
         message: str,

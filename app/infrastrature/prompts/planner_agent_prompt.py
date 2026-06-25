@@ -106,7 +106,7 @@ def build_planner_prompt(
     constitution = VIBE_CONFIG["constitution"]
     specification = VIBE_CONFIG["specification"]
 
-    user_prompt = VIBE_CONFIG["user_prompt"]["prompt"]
+    user_prompt = VIBE_CONFIG["system_prompt"]["prompt"]
 
     final_user_prompt = (
         user_prompt
