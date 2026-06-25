@@ -23,28 +23,12 @@
 
 
 
-import httpx
+from app.services.a2_client import call_a2_with_plan
 
 async def create_project_node(state):
-
-    payload = state["plan"]
-    headers = {}
-
-    token = state.get("token")
-
-    if token:
-        headers["Authorization"] = token
-
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "http://localhost:8000/api/project/create",
-            json=payload,
-            headers=headers
-        )
+    api_response = await call_a2_with_plan(state)
 
     return {
-        "api_response": {
-            "status_code": response.status_code,
-            "body": response.json()
-        }
+        "api_response": api_response,
+        "output": api_response.get("final_response")
     }

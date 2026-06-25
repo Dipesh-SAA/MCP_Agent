@@ -559,7 +559,9 @@ class Orchestrator:
             "type": "execution_result",
             "plan": state.get("plan"),
             "api_response": state.get("api_response"),
-            "message": "Plan approved and execution node completed."
+            "a2_response": (state.get("api_response") or {}).get("final_response"),
+            "a2_ok": (state.get("api_response") or {}).get("ok"),
+            "message": "Plan approved and sent to A2 for Vibe execution."
         }
 
     @staticmethod
