@@ -55,5 +55,5 @@ class LLMFactory:
 
 
 llm = LLMFactory.get_llm(
-    provider="mistral"
+    provider=os.getenv("LLM_PROVIDER", "openai"),
 )
