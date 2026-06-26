@@ -266,6 +266,29 @@
   }
   .activity-name{font-size:13px;font-weight:600;}
   .activity-desc{font-size:12.5px;color:var(--ink-dim);margin-top:2px;}
+  .activity-log{
+    display:flex;
+    flex-direction:column;
+    gap:7px;
+    margin-top:6px;
+  }
+  .activity-log-line{
+    display:flex;
+    gap:9px;
+    align-items:flex-start;
+    color:var(--ink);
+    font-size:12.5px;
+    line-height:1.45;
+  }
+  .activity-log-line::before{
+    content:'';
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:var(--accent);
+    margin-top:6px;
+    flex:0 0 7px;
+  }
   details.sql-block{margin-top:6px;}
   details.sql-block summary{
     cursor:pointer;
@@ -843,9 +866,20 @@
 
   function renderCompletedPanel(data){
     const apiResp = data.api_response || {};
+    const activityLog = Array.isArray(data.activity_log)
+      ? data.activity_log
+      : Array.isArray(apiResp.activity_log) ? apiResp.activity_log : [];
     const ok = typeof data.a2_ok === "boolean"
       ? data.a2_ok
       : Boolean(apiResp.status_code && apiResp.status_code < 400);
+    const logHtml = activityLog.length
+      ? `<div class="panel-section">
+          <h4>Activity log</h4>
+          <div class="activity-log">
+            ${activityLog.map(line => `<div class="activity-log-line">${escapeHtml(stripUrls(line))}</div>`).join("")}
+          </div>
+        </div>`
+      : "";
     const body = `
       <div class="panel-section">
         <h4>Status</h4>
@@ -858,6 +892,7 @@
         <h4>Message</h4>
         <div class="content">${escapeHtml(data.a2_response || data.message || "")}</div>
       </div>
+      ${logHtml}
       <div class="json-toggle" data-toggle="raw-completed">▸ view full response</div>
       <pre class="raw-json" style="display:none" data-block="raw-completed">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
     `;
@@ -1065,6 +1100,10 @@
     } finally {
       setLoading(false);
     }
+  }
+
+  function stripUrls(value){
+    return String(value || "").replace(/https?:\/\/\S+/g, "[hidden]");
   }
 
   async function postChatWithFallback(headers, payload){

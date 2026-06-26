@@ -561,6 +561,7 @@ class Orchestrator:
             "api_response": state.get("api_response"),
             "a2_response": (state.get("api_response") or {}).get("final_response"),
             "a2_ok": (state.get("api_response") or {}).get("ok"),
+            "activity_log": (state.get("api_response") or {}).get("activity_log", []),
             "message": "Plan approved and sent to A2 for Vibe execution."
         }
 
